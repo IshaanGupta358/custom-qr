@@ -105,10 +105,10 @@
     <input type="file" id="bgUpload" accept="image/*" />
 
     <label>Merchant Name</label>
-    <input type="text" id="merchantName" value="Ishaan Gupta" />
+    <input type="text" id="merchantName" value="Merchant Name" />
 
     <label>UPI ID</label>
-    <input type="text" id="upiID" value="ishaan1013@fam" />
+    <input type="text" id="upiID" value="example@upi" />
 
     <label>QR Code Color</label>
     <input type="color" id="qrColor" value="#000000" />
@@ -153,7 +153,7 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
   <script>
-    let upi = document.getElementById('upiDisplay');
+    let upi = document.getElementById('upiId');
     const bgUpload = document.getElementById('bgUpload');
     const logoUpload = document.getElementById('logoUpload');
     const qrCanvas = document.getElementById('qrCanvas');
