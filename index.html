@@ -121,9 +121,9 @@
 
     <label>Upload Logo</label>
     <input type="file" id="logoUpload" accept="image/*" />
+
     <label>Logo Size</label>
     <input type="range" id="logoSize" min="10" max="100" value="50" />
-
 
     <label>QR Group Scale</label>
     <input type="range" id="groupScale" min="50" max="200" value="100" />
@@ -170,7 +170,7 @@
     const qr = new QRious({
       element: qrCanvas,
       size: 200,
-      value: 'upi://pay?pa='+upi.value,
+      value: 'upi://pay?pa=' + document.getElementById('upiID').value,
       background: 'transparent',
       foreground: '#000000',
     });
@@ -270,6 +270,17 @@
       reader.readAsDataURL(file);
     });
 
+    const logoSize = document.getElementById('logoSize');
+
+    function updateLogoSize() {
+      const size = logoSize.value;
+      qrLogo.style.width = `${size}px`;
+      qrLogo.style.height = `${size}px`;
+    }
+
+    logoSize.addEventListener('input', updateLogoSize);
+    updateLogoSize();
+
     let isDragging = false;
     let offsetX, offsetY;
 
@@ -293,18 +304,6 @@
 
     updateScale();
     updateQRSettings();
-
-    const logoSize = document.getElementById('logoSize');
-
-    function updateLogoSize() {
-      const size = logoSize.value;
-      qrLogo.style.width = `${size}px`;
-      qrLogo.style.height = `${size}px`;
-    }
-
-    logoSize.addEventListener('input', updateLogoSize);
-    updateLogoSize(); // initialize on load
-
   </script>
 </body>
 </html>
