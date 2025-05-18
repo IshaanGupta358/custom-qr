@@ -1,0 +1,238 @@
+<!-- Part 1 -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Responsive QR Editor</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      padding: 20px;
+      align-items: center;
+      background: #f0f0f0;
+    }
+    .editor {
+      max-width: 400px;
+      width: 100%;
+      background: #fff;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+    input, select {
+      padding: 10px;
+      font-size: 16px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+    }
+    label {
+      font-weight: bold;
+    }
+    button {
+      padding: 12px;
+      background: #0077ff;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-weight: bold;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #005dd1;
+    }
+    #qrPreview {
+      position: relative;
+      overflow: hidden;
+      display: inline-block;
+    }
+    #uploadedBg {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+    .qrContainer {
+      position: absolute;
+      top: 50px;
+      left: 50px;
+      padding: 15px;
+      border-radius: 10px;
+      background-color: rgba(0,0,0,0.5);
+      text-align: center;
+      transform-origin: top left;
+    }
+    .logoOverlay {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      border-radius: 50%;
+    }
+  </style>
+</head>
+<body>
+  <div class="editor">
+    <label>Background Image</label>
+    <input type="file" id="bgUpload" accept="image/*" />
+
+    <label>Merchant Name</label>
+    <input type="text" id="merchantName" value="Merchant Name" />
+
+    <label>UPI ID</label>
+    <input type="text" id="upiID" value="example@upi" />
+
+    <label>QR Code Color</label>
+    <input type="color" id="qrColor" value="#000000" />
+
+    <label>Font Color</label>
+    <input type="color" id="fontColor" value="#ffffff" />
+
+    <label>Upload Logo</label>
+    <input type="file" id="logoUpload" accept="image/*" />
+
+    <label>Logo Size</label>
+    <input type="range" id="logoSize" min="10" max="100" value="50" />
+
+    <label>QR Group Scale</label>
+    <input type="range" id="groupScale" min="50" max="200" value="100" />
+
+    <button onclick="generateQR()">Download</button>
+  </div>
+
+  <div id="qrPreview">
+    <img id="uploadedBg" />
+    <div class="qrContainer" id="qrContainer">
+      <div id="merchantDisplay" style="color: white;">Merchant Name</div>
+      <canvas id="qrCanvas"></canvas>
+      <img id="qrLogo" class="logoOverlay" />
+      <div id="upiDisplay" style="color: white;">example@upi</div>
+    </div>
+  </div>
+  <!-- Part 2: JavaScript -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+  <script>
+    const qrCanvas = document.getElementById('qrCanvas');
+    const qrLogo = document.getElementById('qrLogo');
+    const qrContainer = document.getElementById('qrContainer');
+    const uploadedBg = document.getElementById('uploadedBg');
+    const groupScale = document.getElementById('groupScale');
+    const logoSize = document.getElementById('logoSize');
+
+    const qr = new QRious({
+      element: qrCanvas,
+      size: 200,
+      value: 'upi://pay?pa=example@upi',
+      background: 'transparent',
+      foreground: '#000000',
+    });
+
+    document.getElementById('merchantName').addEventListener('input', e => {
+      document.getElementById('merchantDisplay').textContent = e.target.value.toUpperCase();
+    });
+
+    document.getElementById('upiID').addEventListener('input', e => {
+      const upi = e.target.value;
+      document.getElementById('upiDisplay').textContent = upi;
+      qr.set({ value: `upi://pay?pa=${upi}` });
+    });
+
+    document.getElementById('qrColor').addEventListener('input', e => {
+      qr.set({ foreground: e.target.value });
+    });
+
+    document.getElementById('fontColor').addEventListener('input', e => {
+      const color = e.target.value;
+      document.getElementById('merchantDisplay').style.color = color;
+      document.getElementById('upiDisplay').style.color = color;
+    });
+
+    groupScale.addEventListener('input', () => {
+      const scale = groupScale.value;
+      qrContainer.style.transform = `scale(${scale / 100})`;
+    });
+
+    logoSize.addEventListener('input', () => {
+      const size = logoSize.value;
+      qrLogo.style.width = `${size}px`;
+      qrLogo.style.height = `${size}px`;
+    });
+
+    document.getElementById('bgUpload').addEventListener('change', function () {
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        uploadedBg.onload = function () {
+          const preview = document.getElementById('qrPreview');
+          preview.style.width = uploadedBg.naturalWidth + 'px';
+          preview.style.height = uploadedBg.naturalHeight + 'px';
+        };
+        uploadedBg.src = e.target.result;
+      };
+      reader.readAsDataURL(this.files[0]);
+    });
+
+    document.getElementById('logoUpload').addEventListener('change', function () {
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        qrLogo.src = e.target.result;
+      };
+      reader.readAsDataURL(this.files[0]);
+    });
+
+    let isDragging = false, offsetX = 0, offsetY = 0;
+
+    qrContainer.addEventListener('mousedown', e => {
+      isDragging = true;
+      offsetX = e.offsetX;
+      offsetY = e.offsetY;
+    });
+    document.addEventListener('mouseup', () => isDragging = false);
+    document.addEventListener('mousemove', e => {
+      if (isDragging) {
+        const rect = document.getElementById('qrPreview').getBoundingClientRect();
+        qrContainer.style.left = `${e.clientX - rect.left - offsetX}px`;
+        qrContainer.style.top = `${e.clientY - rect.top - offsetY}px`;
+      }
+    });
+
+    qrContainer.addEventListener('touchstart', e => {
+      isDragging = true;
+      const touch = e.touches[0];
+      const rect = qrContainer.getBoundingClientRect();
+      offsetX = touch.clientX - rect.left;
+      offsetY = touch.clientY - rect.top;
+    }, { passive: false });
+    document.addEventListener('touchend', () => isDragging = false);
+    document.addEventListener('touchmove', e => {
+      if (isDragging) {
+        const touch = e.touches[0];
+        const rect = document.getElementById('qrPreview').getBoundingClientRect();
+        qrContainer.style.left = `${touch.clientX - rect.left - offsetX}px`;
+        qrContainer.style.top = `${touch.clientY - rect.top - offsetY}px`;
+      }
+    }, { passive: false });
+
+    function generateQR() {
+      const preview = document.getElementById('qrPreview');
+      html2canvas(preview).then(canvas => {
+        const link = document.createElement('a');
+        link.download = 'qr-composite.png';
+        link.href = canvas.toDataURL();
+        link.click();
+      });
+    }
+
+    qrContainer.style.transform = `scale(${groupScale.value / 100})`;
+    qrLogo.style.width = `${logoSize.value}px`;
+    qrLogo.style.height = `${logoSize.value}px`;
+  </script>
+</body>
+</html>
