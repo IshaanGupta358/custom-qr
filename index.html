@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mobile QR Studio</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: sans-serif;
+      background: #f5f5f5;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+    #canvasArea {
+      flex: 1;
+      position: relative;
+      background: #fff;
+      overflow: hidden;
+      touch-action: none;
+    }
+    #bgImage {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      touch-action: none;
+    }
+    #qrOverlay {
+      position: absolute;
+      top: 40%; left: 40%;
+      transform: translate(-50%, -50%);
+      background: rgba(0,0,0,0.5);
+      padding: 10px;
+      border-radius: 10px;
+      text-align: center;
+    }
+    #bottomNav {
+      background: #fff;
+      border-top: 1px solid #ccc;
+      display: flex;
+      justify-content: space-around;
+      padding: 10px 0;
+    }
+    .nav-btn {
+      flex: 1;
+      text-align: center;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    .panel {
+      position: absolute;
+      bottom: 60px;
+      width: 100%;
+      background: #fff;
+      border-top: 1px solid #ccc;
+      padding: 10px;
+      display: none;
+      z-index: 10;
+    }
+    .panel.active {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div id="canvasArea">
+    <img id="bgImage" src="" alt="Background" draggable="false">
+    <div id="qrOverlay">
+      <p style="color: white; font-size: 14px;">Merchant Name</p>
+      <canvas id="qrCanvas"></canvas>
+    </div>
+  </div>
+
+  <!-- Control Panels -->
+  <div class="panel" id="panel-qr">
+    <label>UPI ID: <input type="text" id="upiInput" /></label><br/>
+    <label>QR Color: <input type="color" id="qrColor" /></label>
+  </div>
+  <div class="panel" id="panel-text">
+    <label>Merchant Name: <input type="text" id="merchantName" /></label><br/>
+    <label>Font Color: <input type="color" id="fontColor" /></label>
+  </div>
+  <div class="panel" id="panel-logo">
+    <label>Upload Logo: <input type="file" id="logoUpload" /></label><br/>
+    <label>Logo Size: <input type="range" id="logoSize" min="10" max="100" value="50" /></label>
+  </div>
+  <div class="panel" id="panel-style">
+    <label>QR Scale: <input type="range" id="qrScale" min="50" max="200" value="100" /></label>
+  </div>
+  <div class="panel" id="panel-download">
+    <button onclick="downloadImage('png')">Download PNG</button>
+    <button onclick="downloadImage('jpeg')">Download JPEG</button>
+    <button onclick="downloadPDF()">Download PDF</button>
+  </div>
+
+  <!-- Bottom Nav -->
+  <div id="bottomNav">
+    <div class="nav-btn" onclick="openPanel('qr')">QR</div>
+    <div class="nav-btn" onclick="openPanel('text')">Text</div>
+    <div class="nav-btn" onclick="openPanel('logo')">Logo</div>
+    <div class="nav-btn" onclick="openPanel('style')">Style</div>
+    <div class="nav-btn" onclick="openPanel('download')">Export</div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+  <script>
+    const qrCanvas = document.getElementById("qrCanvas");
+    const qr = new QRious({ element: qrCanvas, value: "upi://pay?pa=example@upi", size: 128 });
+
+    function openPanel(name) {
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      document.getElementById(`panel-${name}`).classList.add('active');
+    }
+
+    document.getElementById('upiInput').addEventListener('input', e => {
+      qr.value = `upi://pay?pa=${e.target.value}`;
+    });
+
+    document.getElementById('qrColor').addEventListener('input', e => {
+      qr.foreground = e.target.value;
+    });
+
+    document.getElementById('merchantName').addEventListener('input', e => {
+      document.querySelector('#qrOverlay p').textContent = e.target.value;
+    });
+
+    document.getElementById('fontColor').addEventListener('input', e => {
+      document.querySelector('#qrOverlay p').style.color = e.target.value;
+    });
+
+    document.getElementById('logoUpload').addEventListener('change', e => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = document.createElement('img');
+        img.src = reader.result;
+        img.style.position = 'absolute';
+        img.style.width = '50px';
+        img.style.height = '50px';
+        img.style.top = '50%';
+        img.style.left = '50%';
+        img.style.transform = 'translate(-50%, -50%)';
+        img.id = 'logoOnQR';
+        qrOverlay.appendChild(img);
+      };
+      reader.readAsDataURL(e.target.files[0]);
+    });
+
+    document.getElementById('logoSize').addEventListener('input', e => {
+      const logo = document.getElementById('logoOnQR');
+      if (logo) {
+        logo.style.width = `${e.target.value}px`;
+        logo.style.height = `${e.target.value}px`;
+      }
+    });
+
+    document.getElementById('qrScale').addEventListener('input', e => {
+      qrOverlay.style.transform = `translate(-50%, -50%) scale(${e.target.value / 100})`;
+    });
+
+    // Touch drag background
+    let isDragging = false, startX, startY;
+    const bgImage = document.getElementById('bgImage');
+
+    bgImage.addEventListener('touchstart', e => {
+      if (e.touches.length === 1) {
+        isDragging = true;
+        startX = e.touches[0].clientX - bgImage.offsetLeft;
+        startY = e.touches[0].clientY - bgImage.offsetTop;
+      }
+    });
+
+    document.addEventListener('touchmove', e => {
+      if (isDragging && e.touches.length === 1) {
+        e.preventDefault();
+        let x = e.touches[0].clientX - startX;
+        let y = e.touches[0].clientY - startY;
+        bgImage.style.left = `${x}px`;
+        bgImage.style.top = `${y}px`;
+      }
+    }, { passive: false });
+
+    document.addEventListener('touchend', () => {
+      isDragging = false;
+    });
+
+    // Download Functions
+    function downloadImage(type) {
+      html2canvas(document.getElementById('canvasArea')).then(canvas => {
+        const link = document.createElement('a');
+        link.download = `qr-code.${type}`;
+        link.href = canvas.toDataURL(`image/${type}`);
+        link.click();
+      });
+    }
+
+    function downloadPDF() {
+      html2canvas(document.getElementById('canvasArea')).then(canvas => {
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jspdf.jsPDF('p', 'mm', 'a4');
+        const width = pdf.internal.pageSize.getWidth();
+        const height = (canvas.height * width) / canvas.width;
+        pdf.addImage(imgData, 'PNG', 0, 10, width, height);
+        pdf.save('qr-code.pdf');
+      });
+    }
+  </script>
+</body>
+</html>
