@@ -14,8 +14,10 @@
               .catch(err => console.error('Service Worker registration failed', err));
     }
   </script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+<script src="https://unpkg.com/qr-code-styling@1.5.0/lib/qr-code-styling.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+  
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
   <style>
     :root {
@@ -203,199 +205,267 @@
   <div class="form-group"><label>Upload Logo</label><input type="file" id="logoUpload" accept="image/*" /></div>
   <div class="form-group"><label>Logo Size</label><input type="range" id="logoSize" min="10" max="100" value="50" /></div>
   <div class="form-group"><label>QR Group Scale</label><input type="range" id="groupScale" min="50" max="200" value="100" /></div>
+<div class="form-group">
+    <label for="bodyStyle">Body Style</label>
+    <select id="bodyStyle">
+      <option value="square">Square</option>
+      <option value="dots">Dots</option>
+      <option value="rounded">Rounded</option>
+      <option value="extra-rounded">Extra Rounded</option>
+      <option value="classy">Classy</option>
+      <option value="classy-rounded">Classy Rounded</option>
+    </select>
+  </div>
+
+  <div class="form-group">
+    <label for="eyeStyle">Eye Style</label>
+    <select id="eyeStyle">
+      <option value="square">Square</option>
+      <option value="extra-rounded">Extra Rounded</option>
+      <option value="dot">Dot</option>
+      <option value="classy">Classy</option>
+      <option value="classy-rounded">Classy Rounded</option>
+    </select>
+  </div>
+
+  <div class="form-group">
+    <label for="eyeDotStyle">Eye Dot Style</label>
+    <select id="eyeDotStyle">
+      <option value="dot">Dot</option>
+      <option value="square">Square</option>
+    </select>
+  </div>
 </div>
 
 <div id="qrPreview">
   <img id="uploadedBg" />
   <div class="qrContainer" id="qrContainer">
     <div id="merchantDisplay">Merchant Name</div>
-    <canvas id="qrCanvas"></canvas>
+    <div id="qrCanvas"></div>
     <img id="qrLogo" class="logoOverlay" />
     <div id="upiDisplay">example@upi</div>
   </div>
 </div>
 
+<script src="https://unpkg.com/qr-code-styling@1.5.0/lib/qr-code-styling.js"></script>
 <script>
-  const qrCanvas = document.getElementById('qrCanvas');
-  const qr = new QRious({ element: qrCanvas, size: 200, background: 'transparent' });
-
-  let originalImg = new Image();
-  let originalWidth = 0;
-  let originalHeight = 0;
-
-  function updateQRSettings() {
-    qr.set({ foreground: qrColor.value });
-    const [r, g, b] = qrBlockColor.value.match(/#(..)(..)(..)/).slice(1).map(x => parseInt(x, 16));
-    qrContainer.style.backgroundColor = `rgba(${r},${g},${b},${bgOpacity.value / 100})`;
-    merchantDisplay.style.color = fontColor.value;
-    upiDisplay.style.color = fontColor.value;
-    merchantDisplay.style.fontFamily = fontFamily.value;
-    upiDisplay.style.fontFamily = fontFamily.value;
+const qrCanvas = document.getElementById("qrCanvas");
+const qrCode = new QRCodeStyling({
+  width: 200,
+  height: 200,
+  type: "canvas",
+  data: "upi://pay?pa=" + (document.getElementById("upiID").value || "example@upi"),
+  dotsOptions: {
+    type: document.getElementById("bodyStyle").value,
+    color: document.getElementById("qrColor").value
+  },
+  backgroundOptions: {
+    color: "transparent"
+  },
+  cornersSquareOptions: {
+    type: document.getElementById("eyeStyle").value
+  },
+  cornersDotOptions: {
+    type: document.getElementById("eyeDotStyle").value
   }
+});
+qrCode.append(qrCanvas);
 
-  function updateScale() {
-    qrContainer.style.transform = `scale(${groupScale.value / 100})`;
-  }
+let originalImg = new Image();
+let originalWidth = 0;
+let originalHeight = 0;
 
-  function updateLogoSize() {
-    qrLogo.style.width = logoSize.value + 'px';
-    qrLogo.style.height = logoSize.value + 'px';
-  }
+function updateQR() {
+  qrCode.update({
+    data: "upi://pay?pa=" + upiID.value,
+    dotsOptions: {
+      color: qrColor.value,
+      type: bodyStyle.value
+    },
+    cornersSquareOptions: {
+      type: eyeStyle.value
+    },
+    cornersDotOptions: {
+      type: eyeDotStyle.value
+    }
+  });
+  upiDisplay.textContent = upiID.value;
+}
 
-  function cropTransparent(canvas) {
-    const ctx = canvas.getContext('2d');
-    const { width, height } = canvas;
-    const img = ctx.getImageData(0, 0, width, height).data;
-    let top = height, left = width, right = 0, bottom = 0;
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        const alpha = img[(y * width + x) * 4 + 3];
-        if (alpha > 0) {
-          if (x < left) left = x;
-          if (x > right) right = x;
-          if (y < top) top = y;
-          if (y > bottom) bottom = y;
-        }
+function updateQRSettings() {
+  const [r, g, b] = qrBlockColor.value.match(/#(..)(..)(..)/).slice(1).map(x => parseInt(x, 16));
+  qrContainer.style.backgroundColor = `rgba(${r},${g},${b},${bgOpacity.value / 100})`;
+  merchantDisplay.style.color = fontColor.value;
+  upiDisplay.style.color = fontColor.value;
+  merchantDisplay.style.fontFamily = fontFamily.value;
+  upiDisplay.style.fontFamily = fontFamily.value;
+}
+
+function updateScale() {
+  qrContainer.style.transform = `scale(${groupScale.value / 100})`;
+}
+
+function updateLogoSize() {
+  qrLogo.style.width = logoSize.value + 'px';
+  qrLogo.style.height = logoSize.value + 'px';
+}
+
+function cropTransparent(canvas) {
+  const ctx = canvas.getContext('2d');
+  const { width, height } = canvas;
+  const img = ctx.getImageData(0, 0, width, height).data;
+  let top = height, left = width, right = 0, bottom = 0;
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const alpha = img[(y * width + x) * 4 + 3];
+      if (alpha > 0) {
+        if (x < left) left = x;
+        if (x > right) right = x;
+        if (y < top) top = y;
+        if (y > bottom) bottom = y;
       }
     }
-    const cropWidth = right - left + 1, cropHeight = bottom - top + 1;
-    const newCanvas = document.createElement('canvas');
-    newCanvas.width = cropWidth;
-    newCanvas.height = cropHeight;
-    newCanvas.getContext('2d').drawImage(canvas, left, top, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
-    return newCanvas;
   }
+  const cropWidth = right - left + 1, cropHeight = bottom - top + 1;
+  const newCanvas = document.createElement('canvas');
+  newCanvas.width = cropWidth;
+  newCanvas.height = cropHeight;
+  newCanvas.getContext('2d').drawImage(canvas, left, top, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+  return newCanvas;
+}
 
-  function generateQR() {
-    const btn = document.querySelector('.top-bar button');
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+function generateQR() {
+  const btn = document.querySelector('.top-bar button');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
 
-    const scale = originalWidth / qrPreview.offsetWidth;
-
-    html2canvas(qrPreview, {
-      backgroundColor: null,
-      useCORS: true,
-      scale: scale
-    }).then(canvas => {
-      const cropped = cropTransparent(canvas);
-      const finalCanvas = document.createElement('canvas');
-      finalCanvas.width = originalWidth;
-      finalCanvas.height = originalHeight;
-      const ctx = finalCanvas.getContext('2d');
-      ctx.drawImage(cropped, 0, 0, originalWidth, originalHeight);
-      const link = document.createElement('a');
-      link.download = 'qr-code.png';
-      link.href = finalCanvas.toDataURL();
-      link.click();
-      btn.disabled = false;
-      btn.innerHTML = '<i class="fas fa-download"></i>';
-    });
-  }
-
-  function toggleMenu() {
-    const panel = document.getElementById("editorPanel");
-    panel.classList.toggle("slide-out");
-  }
-
-  merchantName.oninput = () => merchantDisplay.textContent = merchantName.value.toUpperCase();
-  upiID.oninput = () => {
-    qr.set({ value: `upi://pay?pa=${upiID.value}` });
-    upiDisplay.textContent = upiID.value;
-  };
-  bgUpload.onchange = e => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      uploadedBg.src = reader.result;
-      originalImg.onload = () => {
-        originalWidth = originalImg.naturalWidth;
-        originalHeight = originalImg.naturalHeight;
-        const screenWidth = window.innerWidth;
-        const isMobile = screenWidth <= 768;
-
-        if (!isMobile) {
-          const scaleFactor = screenWidth < originalWidth ? screenWidth / originalWidth : 1;
-          qrPreview.style.width = originalWidth * scaleFactor + 'px';
-          qrPreview.style.height = originalHeight * scaleFactor + 'px';
-          qrPreview.style.transform = 'none';
-        } else {
-          qrPreview.style.width = '100%';
-          qrPreview.style.height = 'auto';
-          qrPreview.style.transform = 'none';
-        }
-
-      };
-      originalImg.src = reader.result;
-    };
-    reader.readAsDataURL(e.target.files[0]);
-  };
-  logoUpload.onchange = e => {
-    const reader = new FileReader();
-    reader.onload = () => qrLogo.src = reader.result;
-    reader.readAsDataURL(e.target.files[0]);
-  };
-  fontFamily.onchange = updateQRSettings;
-  qrColor.oninput = updateQRSettings;
-  bgOpacity.oninput = updateQRSettings;
-  fontColor.oninput = updateQRSettings;
-  qrBlockColor.oninput = updateQRSettings;
-  groupScale.oninput = updateScale;
-  logoSize.oninput = updateLogoSize;
-
-  customFontUpload.onchange = function () {
-    const file = this.files[0];
-    const reader = new FileReader();
-    reader.onload = function (e) {
-      const fontName = file.name.split('.')[0];
-      const style = document.createElement('style');
-      style.textContent = `@font-face { font-family: '${fontName}'; src: url(${e.target.result}); }`;
-      document.head.appendChild(style);
-      const option = new Option(fontName, fontName);
-      fontFamily.add(option);
-      fontFamily.value = fontName;
-      updateQRSettings();
-    };
-    reader.readAsDataURL(file);
-  };
-
-  let isDragging = false, offsetX = 0, offsetY = 0;
-  qrContainer.addEventListener('mousedown', e => {
-    isDragging = true;
-    offsetX = e.offsetX;
-    offsetY = e.offsetY;
+  const scale = originalWidth / qrPreview.offsetWidth;
+  html2canvas(qrPreview, {
+    backgroundColor: null,
+    useCORS: true,
+    scale: scale
+  }).then(canvas => {
+    const cropped = cropTransparent(canvas);
+    const finalCanvas = document.createElement('canvas');
+    finalCanvas.width = originalWidth;
+    finalCanvas.height = originalHeight;
+    const ctx = finalCanvas.getContext('2d');
+    ctx.drawImage(cropped, 0, 0, originalWidth, originalHeight);
+    const link = document.createElement('a');
+    link.download = 'qr-code.png';
+    link.href = finalCanvas.toDataURL();
+    link.click();
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-download"></i>';
   });
-  document.addEventListener('mouseup', () => isDragging = false);
-  document.addEventListener('mousemove', e => {
-    if (isDragging) {
-      const rect = qrPreview.getBoundingClientRect();
-      qrContainer.style.left = `${e.clientX - rect.left - offsetX}px`;
-      qrContainer.style.top = `${e.clientY - rect.top - offsetY}px`;
-    }
-  });
-  qrContainer.addEventListener('touchstart', e => {
-    isDragging = true;
+}
+
+function toggleMenu() {
+  const panel = document.getElementById("editorPanel");
+  panel.classList.toggle("slide-out");
+}
+
+// Event Bindings
+merchantName.oninput = () => merchantDisplay.textContent = merchantName.value.toUpperCase();
+upiID.oninput = updateQR;
+qrColor.oninput = updateQR;
+bodyStyle.onchange = updateQR;
+eyeStyle.onchange = updateQR;
+eyeDotStyle.onchange = updateQR;
+
+fontFamily.onchange = updateQRSettings;
+fontColor.oninput = updateQRSettings;
+qrBlockColor.oninput = updateQRSettings;
+bgOpacity.oninput = updateQRSettings;
+
+groupScale.oninput = updateScale;
+logoSize.oninput = updateLogoSize;
+
+customFontUpload.onchange = function () {
+  const file = this.files[0];
+  const reader = new FileReader();
+  reader.onload = function (e) {
+    const fontName = file.name.split('.')[0];
+    const style = document.createElement('style');
+    style.textContent = `@font-face { font-family: '${fontName}'; src: url(${e.target.result}); }`;
+    document.head.appendChild(style);
+    const option = new Option(fontName, fontName);
+    fontFamily.add(option);
+    fontFamily.value = fontName;
+    updateQRSettings();
+  };
+  reader.readAsDataURL(file);
+};
+
+bgUpload.onchange = e => {
+  const reader = new FileReader();
+  reader.onload = () => {
+    uploadedBg.src = reader.result;
+    originalImg.onload = () => {
+      originalWidth = originalImg.naturalWidth;
+      originalHeight = originalImg.naturalHeight;
+      const screenWidth = window.innerWidth;
+      const isMobile = screenWidth <= 768;
+
+      if (!isMobile) {
+        const scaleFactor = screenWidth < originalWidth ? screenWidth / originalWidth : 1;
+        qrPreview.style.width = originalWidth * scaleFactor + 'px';
+        qrPreview.style.height = originalHeight * scaleFactor + 'px';
+      } else {
+        qrPreview.style.width = '100%';
+        qrPreview.style.height = 'auto';
+      }
+    };
+    originalImg.src = reader.result;
+  };
+  reader.readAsDataURL(e.target.files[0]);
+};
+
+logoUpload.onchange = e => {
+  const reader = new FileReader();
+  reader.onload = () => qrLogo.src = reader.result;
+  reader.readAsDataURL(e.target.files[0]);
+};
+
+// Dragging
+let isDragging = false, offsetX = 0, offsetY = 0;
+qrContainer.addEventListener('mousedown', e => {
+  isDragging = true;
+  offsetX = e.offsetX;
+  offsetY = e.offsetY;
+});
+document.addEventListener('mouseup', () => isDragging = false);
+document.addEventListener('mousemove', e => {
+  if (isDragging) {
+    const rect = qrPreview.getBoundingClientRect();
+    qrContainer.style.left = `${e.clientX - rect.left - offsetX}px`;
+    qrContainer.style.top = `${e.clientY - rect.top - offsetY}px`;
+  }
+});
+qrContainer.addEventListener('touchstart', e => {
+  isDragging = true;
+  const touch = e.touches[0];
+  const rect = qrContainer.getBoundingClientRect();
+  offsetX = touch.clientX - rect.left;
+  offsetY = touch.clientY - rect.top;
+}, { passive: false });
+document.addEventListener('touchend', () => isDragging = false);
+document.addEventListener('touchmove', e => {
+  if (isDragging) {
     const touch = e.touches[0];
-    const rect = qrContainer.getBoundingClientRect();
-    offsetX = touch.clientX - rect.left;
-    offsetY = touch.clientY - rect.top;
-  }, { passive: false });
-  document.addEventListener('touchend', () => isDragging = false);
-  document.addEventListener('touchmove', e => {
-    if (isDragging) {
-      const touch = e.touches[0];
-      const rect = qrPreview.getBoundingClientRect();
-      qrContainer.style.left = `${touch.clientX - rect.left - offsetX}px`;
-      qrContainer.style.top = `${touch.clientY - rect.top - offsetY}px`;
-    }
-  });
+    const rect = qrPreview.getBoundingClientRect();
+    qrContainer.style.left = `${touch.clientX - rect.left - offsetX}px`;
+    qrContainer.style.top = `${touch.clientY - rect.top - offsetY}px`;
+  }
+});
 
-  document.getElementById('darkMode').addEventListener('change', function () {
-    document.body.classList.toggle('dark', this.checked);
-  });
-  // Prevent swipe-to-refresh on mobile
+document.getElementById('darkMode').addEventListener('change', function () {
+  document.body.classList.toggle('dark', this.checked);
+});
+
+// Prevent swipe-to-refresh on mobile
 let maybePreventPullToRefresh = false;
 let lastY = 0;
-
 window.addEventListener('touchstart', e => {
   if (e.touches.length !== 1) return;
   lastY = e.touches[0].clientY;
@@ -406,15 +476,15 @@ window.addEventListener('touchmove', e => {
   const y = e.touches[0].clientY;
   const yDiff = y - lastY;
   lastY = y;
-
-  if (maybePreventPullToRefresh) {
+  if (maybePreventPullToRefresh && yDiff > 0) {
     maybePreventPullToRefresh = false;
-    if (yDiff > 0) {
-      e.preventDefault();
-    }
+    e.preventDefault();
   }
 }, { passive: false });
 
+// Initial call
+updateQR();
+updateQRSettings();
 </script>
 </body>
 </html>
